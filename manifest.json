@@ -1,0 +1,24 @@
+{
+  "manifest_version": 2,
+
+  "name": "Eolo",
+  "description": "L'estensione permette di controllare le soglie di Eolo",
+  "version": "1.0",
+
+  "browser_action": {
+    "default_icon": {
+      "19": "assets/icon19.png",
+      "38": "assets/icon38.png"
+    },
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "scripts": ["eoloapp.js"],
+    "persistent": false
+  },
+  "permissions": [
+    "https://care.ngi.it/",
+    "alarms"
+  ]
+}
+
