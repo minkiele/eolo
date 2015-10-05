@@ -10,7 +10,7 @@ function getHumanReadableQuota (kbytes) {
   return quota;
 }
 
-function getParsedData(text){
+function getParsedData (text) {
   var parsed;
   try{
     parsed = JSON.parse(text);
@@ -28,26 +28,29 @@ function getParsedData(text){
   }
 }
 
-function getQuotaBadgeText(quota){
+function getQuotaBadgeText (quota) {
   return quota.substr(0, 4);
 }
 
 function addError(){
 }
 
-function setBadgeText(quota){
+function setBadgeText (quota) {
   chrome.browserAction.setBadgeText({
     text: quota
   });
 }
 
-function updateInterface(parsed){
+function updateInterface (parsed) {
   var readable = getHumanReadableQuota(parsed.diff),
       badgeText = getQuotaBadgeText(readable);
-  setBadgeText(badgeText);
+  
+  if(parsed.quota > 0){
+    setBadgeText(badgeText);
+  }
 }
 
-function getQuota(callback){
+function getQuota (callback) {
   var req = new XMLHttpRequest();
   req.onreadystatechange = function(){
     var parsed;
@@ -60,14 +63,14 @@ function getQuota(callback){
   req.send();
 }
 
-function scheduleUpdates(){
+function scheduleUpdates () {
   chrome.alarms.create('getQuota', {
     delayInMinutes: 7200,
     periodInMinutes: 7200
   });
 }
 
-function handleAlarm(){
+function handleAlarm () {
   chrome.alarms.onAlarm.addListener(function(alarm){
     if(alarm.name == "getQuota"){
       getQuota(dispatchUpdateInterface);
@@ -75,7 +78,7 @@ function handleAlarm(){
   });
 }
 
-function dispatchUpdateInterface(data){
+function dispatchUpdateInterface (data) {
   updateInterface(data);
   chrome.runtime.sendMessage({type: 'updateQuota', data: data});
 }
@@ -86,12 +89,14 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse){
       updateInterface(data);
       sendResponse(data);
     });
+    
+    return true;
+    
   }
 });
 
-function answerToPopupMessages(data){
+function answerToPopupMessages (data) {
   updateInterface(data);
-  
 }
 
 scheduleUpdates();

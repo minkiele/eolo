@@ -1,0 +1,25 @@
+{
+  "type": "object",
+  "properties": {
+    "active": {
+      "type": "boolean"
+    },
+    "quotas": {
+      "type": "object",
+      "properties": {
+        "used": {
+          "type": "number"
+        },
+        "quota": {
+          "type": "number"
+        },
+        "voice": {
+          "type": "number"
+        }
+      }
+    },
+    "updatesAt": {
+      "type": "number"
+    }
+  }
+}

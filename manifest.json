@@ -13,12 +13,19 @@
     "default_popup": "popup.html"
   },
   "background": {
-    "scripts": ["eoloapp.js"],
+    "scripts": [
+      "vendor/jquery-2.1.4.min.js",
+      "vendor/moment.min.js",
+      "eoloapp.js"
+    ],
     "persistent": false
   },
   "permissions": [
     "https://care.ngi.it/",
-    "alarms"
-  ]
+    "alarms",
+    "storage"
+  ],
+  "storage": {
+    "managed_schema": "schema.json"
+  }
 }
-
