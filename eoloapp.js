@@ -1,4 +1,4 @@
-var EoloQuota, Message;
+var EoloQuota, Messenger, Request, RequestType, Responder, Timer;
 
 EoloQuota = (function() {
   function EoloQuota() {}
@@ -103,10 +103,49 @@ EoloQuota = (function() {
 
 })();
 
-Message = (function() {
-  function Message() {}
+Request = (function() {
+  function Request(type, params1) {
+    this.type = type;
+    this.params = params1 != null ? params1 : {};
+  }
 
-  Message.prototype.send = function(request) {
+  return Request;
+
+})();
+
+Responder = (function() {
+  function Responder(type, respond1) {
+    this.type = type;
+    this.respond = respond1;
+  }
+
+  return Responder;
+
+})();
+
+Messenger = (function() {
+  var responders;
+
+  function Messenger() {}
+
+  responders = {};
+
+  chrome.runtime.onMessage.addListener(function(request, sender, sendBack) {
+    var promise, responder, responderType;
+    for (responderType in responders) {
+      responder = responders[responderType];
+      if (responderType === request.type) {
+        promise = jQuery.when(responder.respond(request.params));
+        promise.always(function(response) {
+          return sendBack(response);
+        });
+        break;
+      }
+    }
+    return true;
+  });
+
+  Messenger.send = function(request) {
     return jQuery.Deferred((function(_this) {
       return function(self) {
         return chrome.runtime.sendMessage(request, function(response) {
@@ -120,9 +159,74 @@ Message = (function() {
     })(this)).promise();
   };
 
-  return Message;
+  Messenger.addResponder = function(responder) {
+    return responders[responder.type] = responder;
+  };
+
+  return Messenger;
 
 })();
+
+Timer = (function() {
+  var addSubscriber, subscribers;
+
+  subscribers = {};
+
+  addSubscriber = function(name, respond) {
+    return subscribers[name] = respond;
+  };
+
+  chrome.alarms.onAlarm.addListener(function(alarm) {
+    if (subscribers[alarm.name] != null) {
+      return subscribers[alarm.name](alarm);
+    }
+  });
+
+  function Timer(name1, timeout, periodic, respond1) {
+    var params;
+    this.name = name1;
+    this.timeout = timeout;
+    this.periodic = periodic != null ? periodic : true;
+    this.respond = respond1 != null ? respond1 : jQuery.noop;
+    params = {
+      when: Date.now() + this.timeout
+    };
+    if (this.periodic) {
+      params.periodInMinutes = Math.ceil(this.timeout / 60000);
+    }
+    chrome.alarms.create(this.name, params);
+    addSubscriber(this.name, (function(_this) {
+      return function(alarm) {
+        return _this.respond(alarm);
+      };
+    })(this));
+  }
+
+  Timer.prototype.clear = function() {
+    return chrome.alarm.clear(this.name, (function(_this) {
+      return function(cleared) {
+        return jQuery.Deferred(function(self) {
+          if (cleared) {
+            return self.resolveWith(_this);
+          } else {
+            return self.rejectWith(_this);
+          }
+        }).promise();
+      };
+    })(this));
+  };
+
+  return Timer;
+
+})();
+
+RequestType = {
+  GET_QUOTA: 'getQuota'
+};
+
+Messenger.addResponder(new Responder(RequestType.GET_QUOTA, function() {
+  return new EoloQuota().getQuota();
+}));
 
 function getHumanReadableQuota (kbytes) {
   var quota;

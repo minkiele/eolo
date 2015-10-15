@@ -38,7 +38,7 @@ class EoloQuota
           else
             self.rejectWith @, ['Cache Expired']
     .promise()
-            
+
   setCacheExpiration: () ->
     jQuery.Deferred (self) =>
       now = moment().add 2, 'h'
@@ -63,8 +63,26 @@ class EoloQuota
               self.resolveWith @, [quota]
       .promise()
 
-class Message
-  send: (request) ->
+class Request
+  constructor: (@type, @params = {}) ->
+
+class Responder
+  constructor: (@type, @respond) ->
+
+class Messenger
+
+  responders = {}
+
+  chrome.runtime.onMessage.addListener (request, sender, sendBack) =>
+    for responderType, responder of responders
+      if responderType is request.type
+        promise = jQuery.when responder.respond request.params
+        promise.always (response) ->
+          sendBack response
+        break
+    yes
+
+  @send: (request) ->
     jQuery.Deferred (self) =>
       chrome.runtime.sendMessage request, (response) =>
         if chrome.runtime.lastError?
@@ -72,3 +90,40 @@ class Message
         else
           self.resolveWith @, [response]
     .promise()
+
+  @addResponder: (responder) ->
+    responders[responder.type] = responder
+
+class Timer
+
+  subscribers = {}
+
+  addSubscriber = (name, respond) ->
+    subscribers[name] = respond
+
+  chrome.alarms.onAlarm.addListener (alarm) ->
+    if subscribers[alarm.name]?
+      subscribers[alarm.name](alarm)
+
+  constructor: (@name, @timeout, @periodic = yes, @respond = jQuery.noop) ->
+    params =
+      when: Date.now() + @timeout
+    if @periodic
+      params.periodInMinutes = Math.ceil @timeout / 60000
+    chrome.alarms.create @name, params
+
+    addSubscriber @name, (alarm) =>
+      @respond alarm
+
+  clear: ->
+    chrome.alarm.clear @name, (cleared) =>
+      jQuery.Deferred (self) =>
+        if cleared then self.resolveWith @
+        else self.rejectWith @
+      .promise()
+
+RequestType =
+  GET_QUOTA: 'getQuota'
+
+Messenger.addResponder new Responder RequestType.GET_QUOTA, ->
+  new EoloQuota().getQuota()
